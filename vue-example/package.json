@@ -1,0 +1,19 @@
+{
+  "name": "vue-examples",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vue": "^3.5.12",
+    "@x-virtual/vue": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1",
+    "@vitejs/plugin-vue": "^6.0.4",
+    "sass": "^1.80.4"
+  }
+}

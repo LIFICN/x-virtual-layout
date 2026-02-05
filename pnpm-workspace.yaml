@@ -1,0 +1,11 @@
+packages:
+  - packages/*
+  - vue-example
+
+linkWorkspacePackages: true
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
+
+preferWorkspacePackages: true

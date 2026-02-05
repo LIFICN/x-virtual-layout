@@ -1,0 +1,30 @@
+{
+  "name": "@x-virtual/vue",
+  "private": false,
+  "version": "0.0.1",
+  "type": "module",
+  "files": [
+    "dist",
+    "index.d.ts"
+  ],
+  "main": "./dist/xVirtualVue.umd.cjs",
+  "module": "./dist/xVirtualVue.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./dist/xVirtualVue.js",
+      "require": "./dist/xVirtualVue.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@x-virtual/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
