@@ -1,4 +1,13 @@
-import VirtualListCore, { debounceRAF } from './VirtualListCore.js'
+import VirtualListCore from './VirtualListCore.js'
+
+export function debounceRAF(func) {
+  let id = null
+  return function (...args) {
+    const ctx = this
+    id && cancelAnimationFrame(id)
+    id = requestAnimationFrame(() => func?.apply(ctx, args))
+  }
+}
 
 export default class VirtualListAdapter {
   static containerStyle = { position: 'relative', 'overflow-anchor': 'none', 'will-change': 'transform' }
@@ -46,14 +55,12 @@ export default class VirtualListAdapter {
     })
 
     const callback = debounceRAF((e) => {
-      let needRender = false
-      e.forEach((el, i) => {
-        const localIndex = this._sliceData[i]?.index
-        if (typeof localIndex != 'number') return
-        const measuredHeigth = el.target.offsetHeight + (gap || 0)
-        const res = _core.updateItemSize(localIndex, measuredHeigth)
-        if (res) needRender = true
+      const heightArr = e.map((el) => {
+        const localIndex = Number(el.target.dataset.index)
+        const measuredHeigth = el.borderBoxSize[0].blockSize + (gap || 0)
+        return { index: localIndex, height: measuredHeigth }
       })
+      let needRender = _core.updateItemHeightBatch(heightArr)
       needRender && this._changeData(false)
     })
 
@@ -78,10 +85,9 @@ export default class VirtualListAdapter {
     return Math.max(0, scrollTop - this._listTop) //页面滚动和容器滚动合并计算scrollTop，容器滚动时listTop始终为0
   }
 
-  _handleScroll = debounceRAF((e) => this._changeData(true))
-
-  _changeData(isReset = true) {
-    if (isReset) {
+  _handleScroll = debounceRAF(() => this._changeData(true))
+  _changeData(hasNewData = true) {
+    if (hasNewData) {
       const viewHeight = this._options.isWindowScroll ? window.innerHeight : this._containerEl?.clientHeight
       this._sliceData = this._core.getVirtualItems(viewHeight, this._getScrollTop())
     }
@@ -91,7 +97,7 @@ export default class VirtualListAdapter {
       el['style'] = this._createItemStyle(el.top)
     })
 
-    this._options?.onChange?.({ needUpdateItemSize: isReset })
+    this._options?.onChange?.({ hasNewData })
   }
 
   _getCurrentRenderedItem = () => {
@@ -103,8 +109,7 @@ export default class VirtualListAdapter {
     if (this.isInitialized) return
     const { getContainerElement } = this._options
     this._containerEl = getContainerElement?.()
-    if (!this._isHTMLElement(this._containerEl) && this._containerEl !== window)
-      throw new Error('getContainerElement must return HTMLElement or window')
+    if (!this._isHTMLElement(this._containerEl)) throw new Error('getContainerElement must return HTMLElement')
     const dom = this._options.isWindowScroll ? window : this._containerEl
     dom?.addEventListener('scroll', this._handleScroll)
     this.refreshListTop()
@@ -134,7 +139,10 @@ export default class VirtualListAdapter {
 
   updateRenderedItemSize() {
     this._resizeObserver?.disconnect()
-    this._getCurrentRenderedItem().forEach((el) => this._resizeObserver?.observe(el))
+    this._getCurrentRenderedItem().forEach((el, index) => {
+      el.dataset.index = this._sliceData[index]?.index
+      this._resizeObserver?.observe(el)
+    })
   }
 
   scrollToIndex(index) {

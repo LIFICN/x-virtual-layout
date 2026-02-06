@@ -1,12 +1,3 @@
-export function debounceRAF(func) {
-  let id = null
-  return function (...args) {
-    const ctx = this
-    id && cancelAnimationFrame(id)
-    id = requestAnimationFrame(() => func?.apply(ctx, args))
-  }
-}
-
 export default class VirtualListCore {
   _options = {} //配置项
   _keyToIndexObj = {} //key-index对照
@@ -42,6 +33,17 @@ export default class VirtualListCore {
   _setItemHeight = (key, height) => this._itemSizeMap.set(key, height || 0)
   _getItemKey = (index) => this._options?.getKey?.(index) || null
 
+  _computeChunk(chunk) {
+    let height = 0
+    let prefixSums = []
+    for (let i = chunk.start; i < chunk.end; i++) {
+      prefixSums.push(height)
+      height += this._getItemHeight(this._getItemKey(i))
+    }
+    chunk.prefixSums = prefixSums
+    chunk.height = height
+  }
+
   _rebuildChunkListFrom(dirtyIndex = 0) {
     const itemCount = this._itemCount
     if (!itemCount) return
@@ -54,40 +56,28 @@ export default class VirtualListCore {
     for (let i = 0; i < forCount; i++) {
       const start = (startChunkIndex + i) * chunkSize
       const end = Math.min(start + chunkSize, itemCount)
-      let height = 0
-      let prefixSums = []
-      for (let j = start; j < end; j++) {
-        prefixSums.push(height)
-        height += this._getItemHeight(this._getItemKey(j))
-      }
-
-      this._chunkList.push({ start, end, top, height, prefixSums })
-      top += height
+      const chunk = { start, end, top, height: 0, prefixSums: [] }
+      this._computeChunk(chunk)
+      this._chunkList.push(chunk)
+      top += chunk.height
     }
   }
 
-  _updateChunkListFrom(chunkChangedIndexList) {
+  _updateChunkListFrom(chunkChangedIndexList = new Set()) {
     const chunkList = this._chunkList
-    chunkChangedIndexList?.forEach((index) => {
+    const arr = Array.from(chunkChangedIndexList || []).sort((a, b) => a - b)
+    if (!arr.length) return
+    const minIndex = arr[0]
+    arr?.forEach((index) => {
       const chunk = chunkList[index]
-      let height = 0
-      let prefixSums = []
-      for (let i = chunk.start; i < chunk.end; i++) {
-        const itemKey = this._getItemKey(i)
-        const offsetHeight = this._getItemHeight(itemKey)
-        prefixSums.push(height)
-        height += offsetHeight
-      }
-
-      chunk.prefixSums = prefixSums
-      const diff = height - chunk.height
-      chunk.height = height
-      if (Math.abs(diff) > 0) {
-        for (let i = index + 1; i < chunkList.length; i++) {
-          chunkList[i].top += diff
-        }
-      }
+      this._computeChunk(chunk)
     })
+
+    let top = (chunkList[minIndex]?.top || 0) + (chunkList[minIndex]?.height || 0)
+    for (let i = minIndex + 1; i < chunkList.length; i++) {
+      chunkList[i].top = top
+      top += chunkList[i].height
+    }
   }
 
   _binarySearch(scrollTop, length) {
@@ -134,15 +124,20 @@ export default class VirtualListCore {
     return this._getItemTop(endKey) + this._getItemHeight(endKey) || 0
   }
 
-  updateItemSize(index, ofsh) {
-    if (typeof index != 'number' || typeof ofsh != 'number' || index < 0) return false
-    const key = this._getItemKey(index)
-    if (!key || this._getItemHeight(key) === ofsh) return false
+  updateItemHeightBatch(arr = []) {
+    if (!Array.isArray(arr)) return false
     const chunkChangedIndexList = new Set() //缓存数据变更Chunk索引
-    this._setItemHeight(key, ofsh)
-    chunkChangedIndexList.add(this._getChunkIndex(index))
+    arr.forEach((item) => {
+      const { index, height: ofsh } = item || {}
+      if (typeof index != 'number' || typeof ofsh != 'number' || index < 0) return
+      const key = this._getItemKey(index)
+      if (!key || this._getItemHeight(key) === ofsh) return
+      this._setItemHeight(key, ofsh)
+      chunkChangedIndexList.add(this._getChunkIndex(index))
+    })
+
     this._updateChunkListFrom(chunkChangedIndexList)
-    return true
+    return chunkChangedIndexList.size > 0
   }
 
   getVirtualItems(viewportHeight, scrollTop) {

@@ -36,7 +36,7 @@ export function useVirtualLayout(dataSource, options = {}) {
     })
   }
 
-  function onChange(colIndex, { needUpdateItemSize }) {
+  function onChange(colIndex, { hasNewData }) {
     const curCore = columnList.value[colIndex].adapter
 
     const dataArr = []
@@ -52,22 +52,18 @@ export function useVirtualLayout(dataSource, options = {}) {
       col.height = colHeight
     })
 
-    const firstItem = dataArr[0]
-    const lastItem = dataArr[dataArr.length - 1]
-    const old = sliceData.value
-    const diffLen = old.length == dataArr.length
-    if (diffLen && firstItem?.key == old[0]?.key && lastItem?.key == old[old.length - 1]?.key) {
+    totalHeight.value = Math.max(...heightArr)
+    if (hasNewData) {
+      sliceData.value = dataArr
+      nextTick(() => curCore.updateRenderedItemSize())
+    } else {
       sliceData.value.forEach((item, index) => {
         if (item.style?.transform != dataArr[index]?.style?.transform) {
           item.style = dataArr[index].style
         }
       })
-    } else {
-      sliceData.value = dataArr
     }
 
-    totalHeight.value = Math.max(...heightArr)
-    needUpdateItemSize && nextTick(() => curCore.updateRenderedItemSize())
     if (!isRefreshHeight.value) {
       refreshColumnHeight()
       isRefreshHeight.value = true
@@ -77,7 +73,7 @@ export function useVirtualLayout(dataSource, options = {}) {
   watch(
     () => dataSource?.value?.slice(),
     async (newVal) => {
-      const { gap = 0, estimatedHeight } = virtualListOptions || {}
+      const { estimatedHeight } = virtualListOptions || {}
 
       if (!initialized.value) {
         await nextTick()
@@ -115,7 +111,7 @@ export function useVirtualLayout(dataSource, options = {}) {
 
       newVal?.forEach((item, i) => {
         const column = getMinColumn(columnList.value)
-        column.height += (typeof estimatedHeight == 'function' ? estimatedHeight(i) : estimatedHeight) + gap
+        column.height += typeof estimatedHeight == 'function' ? estimatedHeight(i) : estimatedHeight
         column.items.push(item)
         column.localToGlobalMap[column.items.length - 1] = i
       })

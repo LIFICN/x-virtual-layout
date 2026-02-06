@@ -53,7 +53,7 @@ const { sliceData, scrollTo, totalHeight, containerStyle, resetList } = useVirtu
   getContainerElement: () => document.querySelector('.test-list-wrapper'),
   itemSelector: '.test-content-item',
   getKey: (i) => dataSource.value[i]?.key,
-  overscan: 6,
+  overscan: 2,
   estimatedHeight: (i) => 60,
 })
 
