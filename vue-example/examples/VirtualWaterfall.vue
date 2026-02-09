@@ -46,7 +46,7 @@ const { sliceData, scrollTo, totalHeight, containerStyle } = useVirtualLayout(da
   getContainerElement: () => document.querySelector('.test-scroll'),
   itemSelector: '.test-content-item',
   getKey: (i) => dataSource.value[i]?.key,
-  overscan: 3,
+  overscan: 2,
   estimatedHeight: (i) => 50,
 })
 

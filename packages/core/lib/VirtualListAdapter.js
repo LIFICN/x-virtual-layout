@@ -10,7 +10,7 @@ export function debounceRAF(func) {
 }
 
 export default class VirtualListAdapter {
-  static containerStyle = { position: 'relative', 'overflow-anchor': 'none', 'will-change': 'transform' }
+  static containerStyle = { position: 'relative', 'overflow-anchor': 'none' }
   _options = {} //配置项
   _containerEl = null //滚动容器
   _resizeObserver = null //监听元素变化

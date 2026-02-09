@@ -12,12 +12,7 @@ export default class VirtualListCore {
     if (typeof getEstimatedHeight != 'function')
       throw new Error('The parameter `getEstimatedHeight` must be a function')
 
-    this._options = {
-      getKey,
-      getEstimatedHeight,
-      overscan,
-      chunkSize,
-    }
+    this._options = { getKey, getEstimatedHeight, overscan, chunkSize }
   }
 
   _getItemHeight = (key) => this._itemSizeMap.get(key) || 0
@@ -32,15 +27,13 @@ export default class VirtualListCore {
 
   _setItemHeight = (key, height) => this._itemSizeMap.set(key, height || 0)
   _getItemKey = (index) => this._options?.getKey?.(index) || null
-
   _computeChunk(chunk) {
     let height = 0
-    let prefixSums = []
+    const prefixSums = chunk.prefixSums
     for (let i = chunk.start; i < chunk.end; i++) {
-      prefixSums.push(height)
+      prefixSums[i - chunk.start] = height
       height += this._getItemHeight(this._getItemKey(i))
     }
-    chunk.prefixSums = prefixSums
     chunk.height = height
   }
 
@@ -56,7 +49,7 @@ export default class VirtualListCore {
     for (let i = 0; i < forCount; i++) {
       const start = (startChunkIndex + i) * chunkSize
       const end = Math.min(start + chunkSize, itemCount)
-      const chunk = { start, end, top, height: 0, prefixSums: [] }
+      const chunk = { start, end, top, height: 0, prefixSums: new Float32Array(end - start) }
       this._computeChunk(chunk)
       this._chunkList.push(chunk)
       top += chunk.height
@@ -68,10 +61,7 @@ export default class VirtualListCore {
     const arr = Array.from(chunkChangedIndexList || []).sort((a, b) => a - b)
     if (!arr.length) return
     const minIndex = arr[0]
-    arr?.forEach((index) => {
-      const chunk = chunkList[index]
-      this._computeChunk(chunk)
-    })
+    arr?.forEach((index) => this._computeChunk(chunkList[index]))
 
     let top = (chunkList[minIndex]?.top || 0) + (chunkList[minIndex]?.height || 0)
     for (let i = minIndex + 1; i < chunkList.length; i++) {
@@ -98,10 +88,11 @@ export default class VirtualListCore {
     this._keyToIndexObj = {}
     this._chunkList = []
     this._itemCount = 0
+    this._itemsPool = []
   }
 
   setItemCount(newItemCount) {
-    if (!newItemCount) return this.reset()
+    if (!newItemCount || newItemCount < 0) return this.reset()
     let firstDirtyIndex = -1
     let newKeyToIndexObj = {}
     for (let i = 0; i < newItemCount; i++) {
@@ -119,8 +110,7 @@ export default class VirtualListCore {
   }
 
   getTotalHeight() {
-    const itemCount = this._itemCount
-    const endKey = this._getItemKey(itemCount - 1)
+    const endKey = this._getItemKey(this._itemCount - 1)
     return this._getItemTop(endKey) + this._getItemHeight(endKey) || 0
   }
 
@@ -164,15 +154,21 @@ export default class VirtualListCore {
       else if (end == itemCount) start = Math.max(start - missing, 0)
     }
 
-    const items = []
+    if (!this._itemsPool) this._itemsPool = [] //对象复用池
+    const items = this._itemsPool
     for (let i = start; i < end; i++) {
       const key = this._getItemKey(i)
-      if (key) items.push({ key, index: i, top: this._getItemTop(key) })
+      if (!key) continue
+      const obj = items[i - start]
+      if (!obj) items.push({ key, index: i, top: this._getItemTop(key) })
+      else {
+        obj.key = key
+        obj.index = i
+        obj.top = this._getItemTop(key)
+      }
     }
-    return items
+    return end - start ? items.slice(0, end - start) : []
   }
 
-  getItemTop(index) {
-    return this._getItemTop(this._getItemKey(index))
-  }
+  getItemTop = (index) => this._getItemTop(this._getItemKey(index))
 }
