@@ -43,7 +43,7 @@ export function useVirtualLayout(dataSource, options = {}) {
     const heightArr = []
     columnList.value.forEach((col) => {
       const arr = col.adapter.getRangeItems().map((e) => {
-        return { ...e, columnIndex: col.index, index: col.localToGlobalMap[e.index] }
+        return { ...e, columnIndex: col.index, index: col.localToGlobalMap.get(e.index) }
       })
 
       dataArr.push(...arr)
@@ -63,17 +63,13 @@ export function useVirtualLayout(dataSource, options = {}) {
         }
       })
     }
-
-    if (!isRefreshHeight.value) {
-      refreshColumnHeight()
-      isRefreshHeight.value = true
-    }
   }
 
   watch(
     () => dataSource?.value?.slice(),
-    async (newVal) => {
+    async (newVal, oldVal) => {
       const { estimatedHeight } = virtualListOptions || {}
+      const isAppend = newVal.length > oldVal?.length && newVal[oldVal.length - 1] === oldVal[oldVal.length - 1]
 
       if (!initialized.value) {
         await nextTick()
@@ -82,9 +78,9 @@ export function useVirtualLayout(dataSource, options = {}) {
             ...virtualListOptions,
             onChange: (val) => onChange(index, val),
             itemSelector: `${virtualListOptions.itemSelector}[data-columnIndex="${index}"]`,
-            getKey: (i) => virtualListOptions?.getKey(columnList.value[index].localToGlobalMap[i]),
+            getKey: (i) => virtualListOptions?.getKey(columnList.value[index].localToGlobalMap.get(i)),
             estimatedHeight: (i) => {
-              return virtualListOptions?.estimatedHeight(columnList.value[index].localToGlobalMap[i])
+              return virtualListOptions?.estimatedHeight(columnList.value[index].localToGlobalMap.get(i))
             },
           })
 
@@ -94,62 +90,69 @@ export function useVirtualLayout(dataSource, options = {}) {
             height: 0,
             items: [],
             adapter,
-            localToGlobalMap: {},
+            localToGlobalMap: new Map(),
           })
 
           adapter.init()
         })
 
         initialized.value = true
-      } else {
+      }
+
+      if (initialized.value && !isAppend) {
         columnList.value.forEach((col) => {
           col.items = []
-          col.localToGlobalMap = {}
+          col.localToGlobalMap.clear()
           col.height = 0
         })
       }
 
-      newVal?.forEach((item, i) => {
+      const start = isAppend ? oldVal.length : 0
+      for (let i = start; i < newVal.length; i++) {
+        const item = newVal[i]
         const column = getMinColumn(columnList.value)
         column.height += typeof estimatedHeight == 'function' ? estimatedHeight(i) : estimatedHeight
         column.items.push(item)
-        column.localToGlobalMap[column.items.length - 1] = i
-      })
+        column.localToGlobalMap.set(column.items.length - 1, i)
+      }
 
       columnList.value.forEach((col) => col.adapter?.setItemCount(col.items.length))
+
+      if (!isRefreshHeight.value) {
+        refreshColumnHeight()
+        isRefreshHeight.value = true
+      }
     },
-    { immediate: true },
+    { immediate: true, deep: false },
   )
 
   onBeforeUnmount(() => {
     initialized.value = false
-    columnList.value.forEach((col) => col.adapter?.dispose())
+    columnList.value.forEach((col) => {
+      col.localToGlobalMap?.clear()
+      col.adapter?.reset()
+    })
   })
 
   return {
     sliceData,
     scrollTo: (globalIndex) => {
+      if (typeof globalIndex != 'number' || isNaN(globalIndex)) return
+      if (columnCount == 1) return columnList.value[0]?.adapter?.scrollToIndex(globalIndex)
       for (let index = 0; index < columnList.value.length; index++) {
         const column = columnList.value[index]
-        for (const [localIndexStr, g] of Object.entries(column.localToGlobalMap || {})) {
-          if (g == globalIndex) {
-            column.adapter?.scrollToIndex(Number(localIndexStr))
-            break
-          }
+        for (const [localIndexStr, g] of column.localToGlobalMap) {
+          if (g == globalIndex) return column.adapter?.scrollToIndex(localIndexStr)
         }
       }
     },
     totalHeight,
     containerStyle: VirtualListAdapter.containerStyle,
-    resetList: async () => {
+    calculateContainerPageTop: async () => {
       await nextTick()
-      initialized.value = false
       columnList.value.forEach((col) => {
         const vLayout = col.adapter
-        vLayout.dispose()
-        vLayout.init()
-        vLayout.setItemCount(col.items?.length)
-        vLayout.refreshListTop()
+        vLayout.calculateContainerPageTop()
       })
     },
   }

@@ -1,18 +1,15 @@
 export default class VirtualListCore {
   _options = {} //配置项
-  _keyToIndexObj = {} //key-index对照
-  _chunkList = [] //缓存数据
-  _itemSizeMap = new Map() //缓存数据
-  _itemCount = 0
+  _keyToIndexObj = {} //key-index对照,包含脏数据,不做删除是因为需要On遍历收益不高
+  _chunkList = [] //分块数据
+  _itemSizeMap = new Map() //高度缓存数据,包含脏数据,不做删除是因为需要On遍历收益不高
+  _itemCount = 0 //总条数
 
   constructor(options = {}) {
-    const { getKey = null, getEstimatedHeight = null, overscan = 10, chunkSize = 100 } = options || {}
-
-    if (typeof getKey != 'function') throw new Error('The parameter `getKey` must be a function')
-    if (typeof getEstimatedHeight != 'function')
-      throw new Error('The parameter `getEstimatedHeight` must be a function')
-
-    this._options = { getKey, getEstimatedHeight, overscan, chunkSize }
+    const { getKey = null, estimatedHeight = null, overscan = 10, chunkSize = 100, gap } = options || {}
+    if (typeof getKey != 'function') throw new Error('The parameter getKey must be a function')
+    if (typeof estimatedHeight != 'function') throw new Error('The parameter estimatedHeight must be a function')
+    this._options = { getKey, estimatedHeight, overscan, chunkSize, gap: Number(gap) || 0 }
   }
 
   _getItemHeight = (key) => this._itemSizeMap.get(key) || 0
@@ -22,7 +19,7 @@ export default class VirtualListCore {
     const chunk = this._chunkList[this._getChunkIndex(i)]
     let top = chunk?.top || 0
     if (chunk) top += chunk.prefixSums[Math.max(i - chunk.start, 0)] || 0
-    return top
+    return top + ((i || 0) + 1) * this._options.gap
   }
 
   _setItemHeight = (key, height) => this._itemSizeMap.set(key, height || 0)
@@ -71,16 +68,28 @@ export default class VirtualListCore {
   }
 
   _binarySearch(scrollTop, length) {
+    if (length <= 0 || typeof scrollTop != 'number' || isNaN(scrollTop)) return 0
     let left = 0
     let right = length - 1
     while (left <= right) {
       const mid = Math.floor((left + right) / 2)
-      const midTop = this._getItemTop(this._getItemKey(mid))
-      if (scrollTop >= midTop && scrollTop < midTop + this._getItemHeight(this._getItemKey(mid))) return mid
-      else if (midTop < scrollTop) left = mid + 1
-      else right = mid - 1
+      const key = this._getItemKey(mid)
+      if (key === null || key === undefined || key === '') {
+        right = mid - 1
+        continue
+      }
+      const midTop = this._getItemTop(key)
+      if (scrollTop >= midTop && scrollTop < midTop + this._getItemHeight(key)) return mid
+      else if (scrollTop < midTop) right = mid - 1
+      else left = mid + 1
     }
-    return Math.max(0, right)
+    return Math.min(Math.max(0, right), length - 1)
+  }
+
+  getItemTop = (index) => this._getItemTop(this._getItemKey(index))
+  getTotalHeight() {
+    const endKey = this._getItemKey(this._itemCount - 1)
+    return this._getItemTop(endKey) + this._getItemHeight(endKey) + this._options.gap
   }
 
   reset() {
@@ -94,40 +103,36 @@ export default class VirtualListCore {
   setItemCount(newItemCount) {
     if (!newItemCount || newItemCount < 0) return this.reset()
     let firstDirtyIndex = -1
-    let newKeyToIndexObj = {}
-    for (let i = 0; i < newItemCount; i++) {
+    const endKey = this._getItemKey(this._itemCount - 1)
+    const isAppend = newItemCount > this._itemCount && this._itemCount - 1 == this._keyToIndexObj[endKey]
+    const start = isAppend ? this._itemCount : 0
+    for (let i = start; i < newItemCount; i++) {
       const key = this._getItemKey(i)
       if (!key) continue
-      newKeyToIndexObj[key] = i
-      if (!this._itemSizeMap.has(key)) this._setItemHeight(key, this._options.getEstimatedHeight?.(i) || 0)
-      if (firstDirtyIndex < 0 && this._keyToIndexObj[key] != i) firstDirtyIndex = i
+      if (firstDirtyIndex < 0 && this._keyToIndexObj[key] !== i) firstDirtyIndex = i
+      this._keyToIndexObj[key] = i
+      if (!this._itemSizeMap.has(key)) this._setItemHeight(key, Number(this._options.estimatedHeight?.(i) || 0))
     }
 
     this._itemCount = newItemCount
-    this._keyToIndexObj = newKeyToIndexObj
     firstDirtyIndex > -1 && this._rebuildChunkListFrom(firstDirtyIndex)
-    newKeyToIndexObj = null
   }
 
-  getTotalHeight() {
-    const endKey = this._getItemKey(this._itemCount - 1)
-    return this._getItemTop(endKey) + this._getItemHeight(endKey) || 0
-  }
-
-  updateItemHeightBatch(arr = []) {
-    if (!Array.isArray(arr)) return false
-    const chunkChangedIndexList = new Set() //缓存数据变更Chunk索引
+  batchUpdateHeight(arr = []) {
+    let delta = 0
+    if (!Array.isArray(arr)) return delta
+    const chunkChangedIndexSet = new Set()
     arr.forEach((item) => {
       const { index, height: ofsh } = item || {}
       if (typeof index != 'number' || typeof ofsh != 'number' || index < 0) return
       const key = this._getItemKey(index)
       if (!key || this._getItemHeight(key) === ofsh) return
+      delta += ofsh - this._getItemHeight(key)
       this._setItemHeight(key, ofsh)
-      chunkChangedIndexList.add(this._getChunkIndex(index))
+      chunkChangedIndexSet.add(this._getChunkIndex(index))
     })
-
-    this._updateChunkListFrom(chunkChangedIndexList)
-    return chunkChangedIndexList.size > 0
+    chunkChangedIndexSet.size > 0 && this._updateChunkListFrom(chunkChangedIndexSet)
+    return delta
   }
 
   getVirtualItems(viewportHeight, scrollTop) {
@@ -169,6 +174,4 @@ export default class VirtualListCore {
     }
     return end - start ? items.slice(0, end - start) : []
   }
-
-  getItemTop = (index) => this._getItemTop(this._getItemKey(index))
 }

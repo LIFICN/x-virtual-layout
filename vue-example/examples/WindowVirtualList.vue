@@ -48,7 +48,7 @@ const dataSource = ref(
     })),
 )
 
-const { sliceData, scrollTo, totalHeight, containerStyle, resetList } = useVirtualLayout(dataSource, {
+const { sliceData, scrollTo, totalHeight, containerStyle, calculateContainerPageTop } = useVirtualLayout(dataSource, {
   isWindowScroll: true,
   getContainerElement: () => document.querySelector('.test-list-wrapper'),
   itemSelector: '.test-content-item',
@@ -58,8 +58,8 @@ const { sliceData, scrollTo, totalHeight, containerStyle, resetList } = useVirtu
 })
 
 onMounted(() => {
-  //如果列表上方是异步渲染的视图，需要渲染完成后调用resetList触发列表re-render
-  // resetList()
+  //如果列表上方是异步渲染的视图，需要渲染完成后调用calculateContainerPageTop触发列表re-render
+  // calculateContainerPageTop()
 })
 
 function generateRandomText() {

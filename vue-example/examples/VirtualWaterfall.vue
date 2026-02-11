@@ -4,7 +4,7 @@
       <button @click="edit(1)">添加</button>
       <button @click="edit(2)">删除</button>
       <button @click="edit(3)">重置</button>
-      <button @click="scrollTo(9000)">滚动到指定位置</button>
+      <button @click="scrollTo(900)">滚动到指定位置</button>
     </p>
 
     <div class="test-scroll" :style="containerStyle">
@@ -16,11 +16,7 @@
         :style="item.style"
         :data-columnIndex="item.columnIndex"
       >
-        <img
-          src="https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png"
-          style="width: 47px; height: 47px; border-radius: 50%"
-        />
-        <p>{{ dataSource[item.index]?.el + '-----' + dataSource[item.index]?.text }}</p>
+        <div :style="{ minHeight: `${dataSource[item.index].height}px` }">{{ dataSource[item.index]?.text }}</div>
       </div>
     </div>
   </div>
@@ -31,42 +27,35 @@ import { ref } from 'vue'
 import { useVirtualLayout } from '@x-virtual/vue'
 
 const dataSource = ref(
-  Array(100)
+  Array(1000)
     .fill(1)
     .map((_, index) => ({
-      el: index + 1,
-      text: generateRandomText(),
+      height: getRandomHeight(50, 200, true),
       key: index + 1,
+      text: index + 1,
     })),
 )
 
 const { sliceData, scrollTo, totalHeight, containerStyle } = useVirtualLayout(dataSource, {
-  columnCount: 2,
+  columnCount: 3,
   gap: 10,
   getContainerElement: () => document.querySelector('.test-scroll'),
   itemSelector: '.test-content-item',
   getKey: (i) => dataSource.value[i]?.key,
   overscan: 2,
-  estimatedHeight: (i) => 50,
+  estimatedHeight: (i) => dataSource.value[i]?.height - 10, //减掉10，是为了测试高度变化滚动效果
 })
 
-function generateRandomText() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  const length = Math.floor(Math.random() * 141) + 60 // 随机生成60到200之间的长度
-  let result = ''
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length)
-    result += characters[randomIndex]
-  }
-
-  return result
+function getRandomHeight(min = 50, max = 300, integer = true) {
+  const val = Math.random() * (max - min) + min
+  return integer ? Math.round(val) : val
 }
 
 function edit(type) {
   if (type == 1) {
     dataSource.value.push({
-      el: dataSource.value.length + 1,
-      text: generateRandomText(),
+      height: getRandomHeight(50, 200, true),
+      text: dataSource.value.length + 1,
       key: dataSource.value.length + 1,
     })
   }
@@ -84,22 +73,24 @@ function edit(type) {
 <style lang="scss" scoped>
 .test-scroll {
   width: 400px;
-  height: 450px;
+  height: 500px;
   overflow-y: auto;
+  background-color: #f0f4f8;
 
   .test-content-item {
     background-color: #fff;
     width: 100%;
-    white-space: normal;
     box-sizing: border-box;
     overflow: hidden;
-    word-break: break-all;
     color: #666;
-    padding: 5px;
-    font-size: 12px;
+    font-size: 17.9px;
+    border-radius: 10px;
+    overflow: hidden;
 
-    > :nth-child(2) {
-      margin: 0 0 0 0;
+    > div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 }
