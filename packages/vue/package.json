@@ -1,7 +1,14 @@
 {
   "name": "@x-virtual/vue",
   "private": false,
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "description": "A lightweight, cross-platform virtual layout library supporting dynamic-height lists and grid layouts with smooth scrolling and efficient rendering.",
+  "homepage": "https://github.com/LIFICN/x-virtual-layout",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LIFICN/x-virtual-layout.git",
+    "directory": "packages/vue"
+  },
   "type": "module",
   "files": [
     "dist",
@@ -26,5 +33,8 @@
   },
   "devDependencies": {
     "vite": "^7.3.1"
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0"
   }
 }

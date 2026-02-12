@@ -6,7 +6,7 @@ export function useVirtualLayout(dataSource, options = {}) {
   const totalHeight = shallowRef(0)
   const columnList = shallowRef([])
   const initialized = shallowRef(false)
-  const isRefreshHeight = shallowRef(false)
+  const isCalcColumnWidth = shallowRef(false)
 
   const { columnCount = 1, ...virtualListOptions } = options || {}
 
@@ -19,15 +19,15 @@ export function useVirtualLayout(dataSource, options = {}) {
     return minCol
   }
 
-  async function refreshColumnHeight() {
-    if (columnCount == 1 || !initialized.value) return
-    await nextTick()
+  async function calcColumnWidth() {
     const { getContainerElement, gap = 0 } = virtualListOptions
+    if (!initialized.value || gap <= 0 || isCalcColumnWidth.value) return
+    isCalcColumnWidth.value = true
+    await nextTick()
     const dom = getContainerElement?.()
     if (!(dom instanceof HTMLElement) && dom != window) throw new Error(`can not get getContainerElement result`)
     const containerWidth = dom.clientWidth
     const colWidth = (containerWidth - gap * (columnCount + 1)) / columnCount
-
     columnList.value.forEach((col) => {
       if (colWidth && colWidth != col.width) {
         col.adapter?.setColumnOffsetStyle(colWidth, gap + col.index * (colWidth + gap))
@@ -117,11 +117,7 @@ export function useVirtualLayout(dataSource, options = {}) {
       }
 
       columnList.value.forEach((col) => col.adapter?.setItemCount(col.items.length))
-
-      if (!isRefreshHeight.value) {
-        refreshColumnHeight()
-        isRefreshHeight.value = true
-      }
+      calcColumnWidth()
     },
     { immediate: true, deep: false },
   )
@@ -141,8 +137,8 @@ export function useVirtualLayout(dataSource, options = {}) {
       if (columnCount == 1) return columnList.value[0]?.adapter?.scrollToIndex(globalIndex)
       for (let index = 0; index < columnList.value.length; index++) {
         const column = columnList.value[index]
-        for (const [localIndexStr, g] of column.localToGlobalMap) {
-          if (g == globalIndex) return column.adapter?.scrollToIndex(localIndexStr)
+        for (const [localIndex, g] of column.localToGlobalMap) {
+          if (g == globalIndex) return column.adapter?.scrollToIndex(localIndex)
         }
       }
     },

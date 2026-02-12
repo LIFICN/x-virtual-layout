@@ -1,7 +1,14 @@
 {
   "name": "@x-virtual/core",
   "private": false,
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "description": "A lightweight, cross-platform virtual layout library supporting dynamic-height lists and grid layouts with smooth scrolling and efficient rendering.",
+  "homepage": "https://github.com/LIFICN/x-virtual-layout",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LIFICN/x-virtual-layout.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "files": [
     "dist",
