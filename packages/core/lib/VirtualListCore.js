@@ -172,6 +172,6 @@ export default class VirtualListCore {
         obj.top = this._getItemTop(key)
       }
     }
-    return end - start ? items.slice(0, end - start) : []
+    return items.slice(0, end - start || 0)
   }
 }

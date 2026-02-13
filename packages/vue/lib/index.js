@@ -68,7 +68,7 @@ export function useVirtualLayout(dataSource, options = {}) {
   watch(
     () => dataSource?.value?.slice(),
     async (newVal, oldVal) => {
-      const { estimatedHeight } = virtualListOptions || {}
+      const { estimatedHeight, itemSelector } = virtualListOptions || {}
       const isAppend = newVal.length > oldVal?.length && newVal[oldVal.length - 1] === oldVal[oldVal.length - 1]
 
       if (!initialized.value) {
@@ -77,7 +77,7 @@ export function useVirtualLayout(dataSource, options = {}) {
           const adapter = new VirtualListAdapter({
             ...virtualListOptions,
             onChange: (val) => onChange(index, val),
-            itemSelector: `${virtualListOptions.itemSelector}[data-columnIndex="${index}"]`,
+            itemSelector: columnCount > 1 ? `${itemSelector}[data-columnIndex="${index}"]` : itemSelector,
             getKey: (i) => virtualListOptions?.getKey(columnList.value[index].localToGlobalMap.get(i)),
             estimatedHeight: (i) => {
               return virtualListOptions?.estimatedHeight(columnList.value[index].localToGlobalMap.get(i))

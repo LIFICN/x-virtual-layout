@@ -1,33 +1,31 @@
 # x-virtual
 
-> 面向不定高、单列或多列/瀑布流虚拟列表的原生 JS Adapter 与 Vue 3 Hook。确保 DOM 与 Adapter 状态完全一致，支持 window 滚动和自定义容器。
+> A native JS Adapter and a Vue 3 Hook for variable-height single-column or multi-column / masonry virtual lists. Ensures the DOM stays fully consistent with Adapter state, and supports both window scrolling and custom containers.
 
-## 1. 概述
+## 1. Overview
 
-`x-virtual` 提供：
+`x-virtual` provides:
 
-* **VirtualListAdapter** — 原生 JS 单列虚拟列表适配器，负责虚拟区计算、scroll 监听、ResizeObserver，不负责渲染。
-* **useVirtualLayout** — Vue 3 Composition Hook，多列/瀑布流封装，基于 Adapter。
+* **VirtualListAdapter** — a native JS single-column virtual list adapter responsible for virtual range calculation, scroll listening, and ResizeObserver. It does NOT handle rendering.
+* **useVirtualLayout** — a Vue 3 Composition Hook for multi-column / masonry layouts, built on top of the Adapter.
 
-**核心原则：** Adapter 与渲染分离，所有 getter 方法必须在 `onChange` 回调中使用。
+**Core principle:** Adapter and rendering are separated. All getter methods must be used inside the `onChange` callback.
 
+## 2. Installation
 
-## 2. 安装
-
-**核心库（原生 JS 使用）**
+**Core library (native JS usage)**
 
 ```bash
 npm install @x-virtual/core
 ```
 
-**Vue 3 Hook（多列/瀑布流封装）**
+**Vue 3 Hook (multi-column / masonry wrapper)**
 
 ```bash
 npm install @x-virtual/vue
 ```
 
-
-## 3. 原生 JS 单列示例（占位元素分离）
+## 3. Native JS single-column example (separated placeholder element)
 
 ```html
 <div id="container" style="width:300px; height:400px; position:relative; overflow:auto;"></div>
@@ -45,12 +43,11 @@ const adapter = new VirtualListAdapter({
   estimatedHeight: (i) => 50,
   overscan: 10,
   gap: 0,
-  //isWindowScroll: false, //是否页面滚动
+  //isWindowScroll: false, // whether to use page/window scrolling
   onChange: ({ hasNewData, containerStyle }) => {
-    // 渲染虚拟 items
     const items = adapter.getRangeItems()
     container.innerHTML = items.map(item => `
-      <div class='v-item' style='${Object.entries(item.style).map(([k,v])=>k+":"+v).join(";")}'>
+      <div class='v-item' style='${Object.entries(item.style).map(([k,v])=>k+":"+v).join(";")}' >
         ${item.key}: ${data[item.index]?.text}
       </div>
     `).join('')
@@ -65,15 +62,15 @@ adapter.setItemCount(data.length)
 </script>
 ```
 
-## 4. Vue 3 多列/瀑布流 Hook 示例（占位元素分离）
+## 4. Vue 3 multi-column / masonry Hook example (separated placeholder element)
 
 ```html
 <template>
   <div class="test-scroll" :style="containerStyle" ref="container">
-    <!-- 占位元素 -->
+    <!-- placeholder element -->
     <div :style="{ height: `${totalHeight}px` }"></div>
 
-    <!-- 渲染 item -->
+    <!-- rendered item -->
     <div
       v-for="item in sliceData"
       :key="item.key"
@@ -97,14 +94,15 @@ import { useVirtualLayout } from '@x-virtual/vue'
 const dataSource = ref(Array.from({ length: 1000 }, (_, i) => ({ el: 'El'+i, text: 'Text'+i })))
 const container = ref(null)
 
-const { sliceData, totalHeight, scrollTo, containerStyle, calculateContainerPageTop } = useVirtualLayout(dataSource, {
-  columnCount: 1,
-  gap: 8,
-  itemSelector: '.test-content-item',
-  getContainerElement: () => container.value,
-  getKey: i => dataSource.value[i]?.el,
-  estimatedHeight: (i) => 60,
-})
+const { sliceData, totalHeight, scrollTo, containerStyle, calculateContainerPageTop } =
+  useVirtualLayout(dataSource, {
+    columnCount: 1,
+    gap: 8,
+    itemSelector: '.test-content-item',
+    getContainerElement: () => container.value,
+    getKey: i => dataSource.value[i]?.el,
+    estimatedHeight: (i) => 60,
+  })
 </script>
 
 <style>
@@ -118,35 +116,35 @@ const { sliceData, totalHeight, scrollTo, containerStyle, calculateContainerPage
 </style>
 ```
 
-## 5. 核心 API（网格形式）
+## 5. Core API (grid format)
 
-| 属性 / 方法                   | 类型       | 说明                                                                               |
-| ------------------------- | -------- | -------------------------------------------------------------------------------- |
-| getContainerElement       | Function | 返回滚动容器 DOM                                                                       |
-| itemSelector              | String   | 渲染项 selector                                                                     |
-| getKey                    | Function | 唯一且稳定 key                                                                        |
-| estimatedHeight           | Function | 预估高度                                                                             |
-| overscan                  | Number   | 前后缓冲条数                                                                           |
-| gap                       | Number   | item 间距                                                                          |
-| onChange                  | Function | Adapter 更新回调（必须在回调中读取 `getRangeItems()` 和 `getTotalHeight()`，并同步 containerStyle） |
-| isWindowScroll            | Boolean  | 是否使用 window 滚动，影响 scrollTop 计算                                                   |
-| calculateContainerPageTop | Function | 页面滚动或容器偏移时更新 listTop，需在 mounted 或 resize 后调用                                     |
-| updateRenderedItemSize    | Function | 在 DOM 渲染后调用，使 ResizeObserver attach 正确                                           |
-| getRangeItems             | Function | 获取当前可视区虚拟 items，包含 `.top` 和 `.style`                                             |
-| getTotalHeight            | Function | 获取虚拟列表总高度                                                                        |
-| scrollToIndex             | Function | 滚动到指定全局索引                                                                        |
-| setItemCount              | Function | 更新列表总条数                                                                          |
-| containerStyle            | Object   | Adapter 会返回当前容器 style，需要手动同步到 DOM                                                |
+| Prop / Method              | Type     | Description |
+|---------------------------|----------|-------------|
+| getContainerElement       | Function | Returns the scrolling container DOM |
+| itemSelector              | String   | Selector for rendered items |
+| getKey                    | Function | Unique and stable key |
+| estimatedHeight           | Function | Estimated item height |
+| overscan                  | Number   | Number of buffered items before/after visible range |
+| gap                       | Number   | Spacing between items |
+| onChange                  | Function | Adapter update callback (must call `getRangeItems()` and `getTotalHeight()` inside this callback and sync `containerStyle`) |
+| isWindowScroll            | Boolean  | Whether to use window scrolling; affects scrollTop calculation |
+| calculateContainerPageTop | Function | Updates listTop when using window scroll or when container has a non-zero top offset; call after mounted or resize |
+| updateRenderedItemSize    | Function | Call after DOM rendering so ResizeObserver attaches correctly |
+| getRangeItems             | Function | Gets current visible virtual items, including `.top` and `.style` |
+| getTotalHeight            | Function | Gets total virtual list height |
+| scrollToIndex             | Function | Scrolls to a specific global index |
+| setItemCount              | Function | Updates total item count |
+| containerStyle            | Object   | Adapter returns container style that must be manually synced to DOM |
 
-## 6. 使用注意
+## 6. Usage Notes
 
-1. 占位元素必须在 item 前面，并单独撑起总高度。
-2. 所有数据获取方法必须在 `onChange` 回调中调用，否则虚拟区和 DOM 不一致。
-3. `updateRenderedItemSize()` 必须在 DOM 已插入后调用。
-4. `calculateContainerPageTop()` 对 window 滚动或容器非零 top 必须调用。
-5. item DOM 必须 `position:absolute`，容器 `position:relative`。
-6. `getKey` 必须唯一且稳定。
-7. Adapter 跨框架，但原生 JS 使用必须直接操作 DOM，并手动同步 `containerStyle`。
+1. The placeholder element must be placed before items and must independently occupy the total height.
+2. All data access methods must be called inside `onChange`; otherwise the virtual range and DOM will become inconsistent.
+3. `updateRenderedItemSize()` must be called after DOM insertion.
+4. `calculateContainerPageTop()` must be called when using window scrolling or when the container has a non-zero top offset.
+5. Item DOM must use `position: absolute`, and the container must use `position: relative`.
+6. `getKey` must be unique and stable.
+7. The Adapter is framework-agnostic, but native JS usage requires direct DOM manipulation and manual synchronization of `containerStyle`.
 
 ## 7. License
 
