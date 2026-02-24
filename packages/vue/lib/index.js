@@ -1,5 +1,6 @@
 import { nextTick, onBeforeUnmount, ref, watch, shallowRef } from 'vue'
-import { VirtualListAdapter } from '@x-virtual/core'
+import { VirtualListAdapter, VirtualListCore } from '@x-virtual/core'
+export { VirtualListAdapter, VirtualListCore }
 
 export function useVirtualLayout(dataSource, options = {}) {
   const sliceData = ref([])
