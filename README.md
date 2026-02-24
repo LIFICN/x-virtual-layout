@@ -28,23 +28,26 @@ npm install @x-virtual/vue
 ## 3. Native JS single-column example (separated placeholder element)
 
 ```html
-<div id="container" style="width:300px; height:400px; position:relative; overflow:auto;"></div>
+<div id="container" style="width:300px; height:400px; position:relative; overflow:auto;">
+  <div id="spacer"></div>
+</div>
 
 <script type="module">
 import { VirtualListAdapter } from '@x-virtual/core'
 
 const data = Array.from({ length: 1000 }, (_, i) => ({ id: i, text: 'Item ' + i }))
 const container = document.getElementById('container')
+const spacer = document.getElementById('spacer')
 
 const adapter = new VirtualListAdapter({
   getContainerElement: () => container,
   itemSelector: '.v-item',
   getKey: i => data[i]?.id,
-  estimatedHeight: (i) => 50,
+  estimatedHeight: (i) => 10,
   overscan: 10,
   gap: 0,
   //isWindowScroll: false, // whether to use page/window scrolling
-  onChange: ({ hasNewData, containerStyle }) => {
+  onChange: ({ hasNewData }) => {
     const items = adapter.getRangeItems()
     container.innerHTML = items.map(item => `
       <div class='v-item' style='${Object.entries(item.style).map(([k,v])=>k+":"+v).join(";")}' >
@@ -52,13 +55,17 @@ const adapter = new VirtualListAdapter({
       </div>
     `).join('')
 
-    if (hasNewData) adapter.updateRenderedItemSize()
+    spacer.style.height = adapter.getTotalHeight() + 'px'
+    if (hasNewData) requestAnimationFrame(() => adapter.updateRenderedItemSize())
   }
 })
 
 Object.assign(container.style, VirtualListAdapter.containerStyle)
-adapter.init()
-adapter.setItemCount(data.length)
+requestAnimationFrame(() => {
+  // adapter.reset() //dispose
+  adapter.init()
+  adapter.isInitialized && adapter.setItemCount(data.length)
+})
 </script>
 ```
 
