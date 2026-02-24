@@ -4,6 +4,7 @@
  */
 import type { Ref, ShallowRef } from 'vue'
 import type { VirtualListAdapterOptions, VirtualItem } from '@x-virtual/core'
+export { VirtualListAdapter, VirtualListCore } from '@x-virtual/core'
 
 export interface UseVirtualLayoutOptions extends VirtualListAdapterOptions {
   /** Number of columns in the masonry layout. Default: 1 */
