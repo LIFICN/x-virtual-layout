@@ -124,7 +124,7 @@ export default class VirtualListCore {
     const chunkChangedIndexSet = new Set()
     arr.forEach((item) => {
       const { index, height: ofsh } = item || {}
-      if (typeof index != 'number' || typeof ofsh != 'number' || index < 0) return
+      if (typeof index != 'number' || typeof ofsh != 'number' || isNaN(index) || isNaN(ofsh) || index < 0) return
       const key = this._getItemKey(index)
       if (!key || this._getItemHeight(key) === ofsh) return
       delta += ofsh - this._getItemHeight(key)

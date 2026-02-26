@@ -30,6 +30,7 @@ export default class VirtualListAdapter {
       overscan = 10,
       estimatedHeight,
       onChange = null,
+      chunkSize = 100,
       gap,
     } = _options || {}
 
@@ -48,7 +49,7 @@ export default class VirtualListAdapter {
       overscan,
       getKey,
       estimatedHeight,
-      chunkSize: 100,
+      chunkSize,
       gap,
     })
 
@@ -157,7 +158,9 @@ export default class VirtualListAdapter {
   updateRenderedItemSize() {
     this._resizeObserver?.disconnect()
     this._getCurrentRenderedItem().forEach((el, index) => {
-      el.dataset.index = this._sliceData[index]?.index
+      const idx = this._sliceData[index]?.index
+      if (isNaN(idx) || idx === undefined) return
+      el.dataset.index = idx
       this._resizeObserver?.observe(el)
     })
   }
