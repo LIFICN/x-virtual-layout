@@ -23,7 +23,7 @@ export default class VirtualListCore {
   }
 
   _setItemHeight = (key, height) => this._itemSizeMap.set(key, height || 0)
-  _getItemKey = (index) => this._options?.getKey?.(index) || null
+  _getItemKey = (index) => this._options?.getKey?.(index)
   _computeChunk(chunk) {
     let height = 0
     const prefixSums = chunk.prefixSums
@@ -86,6 +86,7 @@ export default class VirtualListCore {
     return Math.min(Math.max(0, right), length - 1)
   }
 
+  _validItemKey = (key) => key || typeof key === 'number'
   getItemTop = (index) => this._getItemTop(this._getItemKey(index))
   getTotalHeight() {
     const endKey = this._getItemKey(this._itemCount - 1)
@@ -108,7 +109,7 @@ export default class VirtualListCore {
     const start = isAppend ? this._itemCount : 0
     for (let i = start; i < newItemCount; i++) {
       const key = this._getItemKey(i)
-      if (!key) continue
+      if (!this._validItemKey(key)) continue
       if (firstDirtyIndex < 0 && this._keyToIndexObj[key] !== i) firstDirtyIndex = i
       this._keyToIndexObj[key] = i
       if (!this._itemSizeMap.has(key)) this._setItemHeight(key, Number(this._options.estimatedHeight?.(i) || 0))
@@ -126,7 +127,7 @@ export default class VirtualListCore {
       const { index, height: ofsh } = item || {}
       if (typeof index != 'number' || typeof ofsh != 'number' || isNaN(index) || isNaN(ofsh) || index < 0) return
       const key = this._getItemKey(index)
-      if (!key || this._getItemHeight(key) === ofsh) return
+      if (!this._validItemKey(key) || this._getItemHeight(key) === ofsh) return
       delta += ofsh - this._getItemHeight(key)
       this._setItemHeight(key, ofsh)
       chunkChangedIndexSet.add(this._getChunkIndex(index))
@@ -163,7 +164,7 @@ export default class VirtualListCore {
     const items = this._itemsPool
     for (let i = start; i < end; i++) {
       const key = this._getItemKey(i)
-      if (!key) continue
+      if (!this._validItemKey(key)) continue
       const obj = items[i - start]
       if (!obj) items.push({ key, index: i, top: this._getItemTop(key) })
       else {
